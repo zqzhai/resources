@@ -1,9 +1,3 @@
-/*
- * exercise.cpp
- *
- *  Created on: 2018-4-9
- *      Author: z00389630
- */
 #include <iostream>
 #include <list>
 #include <algorithm>    // std::sort
