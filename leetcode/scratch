@@ -1,0 +1,1086 @@
+/*
+ * exercise.cpp
+ *
+ *  Created on: 2018-4-9
+ *      Author: z00389630
+ */
+#include <iostream>
+#include <list>
+#include <algorithm>    // std::sort
+#include <vector>
+#include <map>
+#include <math.h>
+using namespace std;
+struct Node
+{
+	int data;
+	Node* leftChild;
+	Node* rightChild;
+	Node* parent;
+	int height;
+	Node(int cc):data(cc), leftChild(NULL), rightChild(NULL),parent(NULL),height(0){
+
+	};
+};
+enum RETCODE{
+	RET_OK,
+	RET_NON_EXIST
+};
+class BinarySearchTree
+{
+public:
+	BinarySearchTree();
+	virtual void insert(int cc);
+	virtual Node* contains(int cc);
+	virtual RETCODE remove(int cc);
+	virtual void traverse();
+protected:
+	virtual void insert(int cc, Node* node);
+	virtual Node* contains(int cc, Node* node);
+	virtual void traverse(Node* root);
+protected:
+	Node* root;
+
+};
+BinarySearchTree::BinarySearchTree():root(NULL){
+};
+
+void BinarySearchTree::traverse()
+{
+	traverse(root);
+}
+//中序遍历
+void BinarySearchTree::traverse(Node* root)
+{
+	if(root == NULL)
+		return ;
+
+	cout << root->data <<endl;
+
+	traverse(root->leftChild);
+	traverse(root->rightChild);
+}
+
+void BinarySearchTree::insert(int cc){
+	if(root == NULL){
+		root = new Node(cc);
+		return ;
+	}else{
+	    insert(cc, root);
+	}
+}
+
+void BinarySearchTree::insert(int cc, Node* node){
+
+	if(cc < node->data){
+		if(node->leftChild == NULL){
+		    Node* newNode = new Node(cc);
+		    node->leftChild = newNode;
+		    newNode->parent = node;
+		    //adjust height
+		    Node* pos = newNode;
+		    while(pos->parent != NULL){
+		    	pos->parent->height++;
+		    	pos = pos->parent;
+		    }
+		    return ;
+		}else{
+		    insert(cc, node->leftChild);
+		}
+	}else{
+		if(node->rightChild == NULL){
+			Node* newNode = new Node(cc);
+			node->rightChild = newNode;
+			newNode->parent = node;
+		    //adjust height
+		    Node* pos = newNode;
+		    while(pos->parent != NULL){
+		    	pos->parent->height++;
+		    	pos = pos->parent;
+		    }
+			return ;
+		}else{
+			insert(cc, node->rightChild);
+		}
+	}
+
+}
+
+Node* BinarySearchTree::contains(int cc)
+{
+	return contains(cc, root);
+}
+
+Node* BinarySearchTree::contains(int cc, Node* node)
+{
+	if(node == NULL){
+		return NULL;
+	}else if(cc == node->data){
+		return node;
+	}else if(cc < node->data){
+		return contains(cc, node->leftChild);
+	}else{
+		return contains(cc, node->rightChild);
+	}
+}
+
+RETCODE BinarySearchTree::remove(int cc)
+{
+	Node* node = contains(cc);
+
+	if(node == NULL){
+		return RET_NON_EXIST;
+	}
+
+	/*删除节点后，需要找一个节点来替代被删除节点的位置
+	 * 1) 如果被删除节点是叶子节点，无需替代
+	 * 2）如果被删除节点只有一个子节点，用子节点代替
+	 * 3）如果左子树没有右子节点， 使用左子树的根节点替代，被删除节点的右子树成为左子树的右节点
+	 * 4）否则，在左子树的右子树中找一个叶子节点代替删除节点
+	 */
+	if(node->leftChild == NULL && node->rightChild == NULL){
+		return RET_OK;
+	}
+	Node* replace = NULL;
+	if(node->leftChild == NULL){
+		replace = node->rightChild;
+	}else if(node->rightChild == NULL){
+		replace = node->leftChild;
+	}else if(node->leftChild->rightChild == NULL){
+		replace = node->leftChild;
+		replace->rightChild = node->rightChild;
+	}else{
+		Node* pos = node->leftChild->rightChild;
+		//查找subRoot树的叶子节点
+		Node* leaf = NULL;
+		while(leaf == NULL){
+			if(pos->leftChild == NULL && pos->rightChild == NULL){
+				leaf = pos;
+				break;
+			}else if(pos->leftChild == NULL){
+				pos = pos->rightChild;
+			}else{
+				pos = pos->leftChild;
+			}
+		}
+		replace = leaf;
+		//把叶子摘掉
+		if(leaf->parent->leftChild == leaf){
+			leaf->parent->leftChild = NULL;
+		}else{
+			leaf->parent->rightChild = NULL;
+		}
+		replace->leftChild = node->leftChild;
+		replace->rightChild = node->rightChild;
+	}
+
+	replace->parent = node->parent;
+	if(node->parent->leftChild == node){
+		node->parent->leftChild = replace;
+	}else{
+		node->parent->rightChild = replace;
+	}
+
+	delete node;
+	return RET_OK;
+}
+void testBinarySearchTree()
+{
+	cout << "build binary search tree" <<endl;
+	BinarySearchTree tree;
+	tree.insert(10);
+	tree.insert(15);
+	tree.insert(5);
+	tree.insert(100);
+	tree.insert(1);
+	tree.insert(12);
+	tree.insert(13);
+	tree.insert(11);
+
+	tree.traverse();
+	cout << "remove 15" <<endl;
+	tree.remove(15);
+	tree.traverse();
+}
+
+/*
+class AVLTree: public BinarySearchTree
+{
+public:
+	AVLTree();
+	virtual void insert(int cc);
+	virtual Node* contains(int cc);
+	virtual RETCODE remove(int cc);
+	virtual void traverse();
+protected:
+	virtual void insert(int cc, Node* node);
+	virtual Node* contains(int cc, Node* node);
+	virtual void traverse(Node* root);
+	void adjust();
+protected:
+	Node* root;
+
+};
+AVLTree::AVLTree(){
+}
+
+void AVLTree::insert(int cc){
+	//insert first, then rotate the tree to reach balance
+	BinarySearchTree::insert(cc);
+	adjust();
+}
+void AVLTree::adjust(Node* subRoot)
+{
+	if(subRoot->height == 0)
+		return ;
+	if(subRoot->rightChild == NULL && subRoot->leftChild == 2){
+		if(subRoot->leftChild->rightChild == NULL){
+			//rotation
+			Node* newRoot = subRoot->leftChild;
+
+
+			newRoot->parent = subRoot->parent;
+			if(subRoot->parent != NULL && subRoot->parent->leftChild == subRoot){
+				newRoot->parent->leftChild = newRoot;
+			}else if(subRoot->parent != NULL && subRoot->parent->rightChild == subRoot){
+				newRoot->parent->rightChild = newRoot;
+			}
+
+			newRoot->rightChild = subRoot;
+			subRoot->parent = newRoot;
+
+
+				subRoot->leftChild->rightChild = subRoot;
+				subRoot = subRoot->leftChild;
+
+			}
+		}
+	}
+}
+*/
+
+/*
+class QuickSort{
+public:
+
+};
+*/
+/*
+ * 最短路径的经典算法, 使用动态规划
+class DijkstraAlgrithom
+{
+public:
+
+};
+*/
+
+/*
+ * Turnpike： 公路重建问题，使用回溯算法(backtracking algorithm)
+ * 给定距离集合，重建点集
+ */
+class DistSet{
+public:
+	DistSet();
+	DistSet(const DistSet& ds);
+	void insert(int d);
+	int deleteMax();
+	bool contains(int d);
+	void remove(int d);
+	int size();
+	void print();
+private:
+	list<int> distSet;
+};
+
+DistSet::DistSet()
+{
+}
+DistSet::DistSet(const DistSet& ds):distSet(ds.distSet){
+}
+
+void DistSet::print(){
+	list<int>::iterator it = distSet.begin();
+	for(; it != distSet.end(); it++){
+		cout << *it <<" ";
+	}
+	cout << endl;
+}
+int DistSet::size(){
+	return distSet.size();
+}
+void DistSet::insert(int d){
+	distSet.push_back(d);
+}
+
+int DistSet::deleteMax(){
+	int valMax = 0;
+	list<int>::iterator maxIt;
+	list<int>::iterator it = distSet.begin();
+	for(; it != distSet.end(); it++){
+		int cur = *it;
+		if(cur > valMax){
+			valMax = cur;
+			maxIt = it;
+		}
+	}
+	distSet.erase(maxIt);
+	return valMax;
+}
+
+bool DistSet::contains(int d){
+	list<int>::iterator it = distSet.begin();
+	for(; it != distSet.end(); it++){
+		if(d == *it)
+			return true;
+	}
+	return false;
+}
+
+void DistSet::remove(int d){
+	list<int>::iterator it = distSet.begin();
+	for(; it != distSet.end(); it++){
+		if(d == *it){
+			distSet.erase(it);
+			return ;
+		}
+	}
+
+}
+
+class Turnpike{
+public:
+	bool build(vector<int>& x, DistSet d, int n);
+	bool place(vector<int>& x, DistSet d, int left, int right, int n);
+};
+
+/*
+ *
+ * */
+bool Turnpike::build(vector<int>& x, DistSet d, int n)
+{
+	x[1] = 0;
+	x[n] = d.deleteMax();
+	x[n-1] = d.deleteMax();
+
+	if(d.contains(x[n] - x[n-1])){
+		d.remove(x[n] - x[n-1]);
+		return place(x, d, 2, n-2, n);
+	}else{
+		return false;
+	}
+}
+
+bool Turnpike::place(vector<int>& x, DistSet d, int left, int right, int n)
+{
+	d.print();
+	if(d.size() == 0){
+		return true;
+	}
+	DistSet backDistSet = d;
+	int maxDist = d.deleteMax();
+
+	DistSet tmpSet = backDistSet;
+	x[left] = x[n] - maxDist;
+	bool placeResult = true;
+	for(int pos = 1; pos < left; pos++){
+		if(!tmpSet.contains(x[left] - x[pos])){
+			placeResult = false;
+			break;
+		}
+		tmpSet.remove(x[left] - x[pos]);
+	}
+	if(placeResult){
+		for(int pos = (right+1); pos <= n; pos++){
+			if(!tmpSet.contains(x[pos] - x[left])){
+				placeResult = false;
+				break;
+			}
+			tmpSet.remove(x[pos] - x[left]);
+		}
+
+		if(placeResult && (placeResult = place(x, tmpSet, left + 1, right, n)))
+			return true;
+	}
+
+	//place failed, reset the distance set and retry another way
+	tmpSet = backDistSet;
+	x[right] = x[1] + maxDist;
+	placeResult = true;
+	for(int pos = 1; pos < left; pos++){
+		if(!tmpSet.contains(x[right] - x[pos])){
+			placeResult = false;
+			break;
+		}
+		tmpSet.remove(x[right] - x[pos]);
+	}
+	if(placeResult){
+		for(int pos = (right+1); pos <= n; pos++){
+			if(!tmpSet.contains(x[pos] - x[right])){
+				placeResult = false;
+				break;
+			}
+			tmpSet.remove(x[pos] - x[right]);
+		}
+
+		if(placeResult && (placeResult = place(x, tmpSet, left, right -1 , n)))
+			return true;
+	}
+
+	return false;
+
+}
+
+void turnpike(){
+	Turnpike obj;
+	DistSet distset;
+	int distArray[] = {1,2,2,2,3,3,3,4,5,5,5,6,7,8,10};
+	for(unsigned int cc = 0; cc < sizeof(distArray)/sizeof(distArray[0]); cc++)
+	    distset.insert(distArray[cc]);
+
+	int n = 6;
+	vector<int> pointX(n+1);
+	bool ret = obj.build(pointX, distset, n);
+	if(ret){
+		for(int cc = 1; cc <= n; cc++)
+			cout << pointX[cc] <<" ";
+
+		cout<<endl;
+	}else{
+		cout <<"turn pike failed"<<endl;
+	}
+}
+
+
+/*
+struct Page
+{
+	int pageIndex;
+	//data
+};
+class LRUCache{
+public:
+	LRUCache(int size);
+	Page* hit(int pageIndex);
+	void inserToCache(Page* page);
+private:
+	list<Page*> cache;
+	int maxSize;
+};
+
+LRUCache::LRUCache(int size):maxSize(size){
+
+}
+
+Page* LRUCache::hit(int pageIndex)
+{
+}
+*/
+/*
+ * 算法设计的思路：
+ * 	按照已知的算法思路设计，主要是讲清楚算法的大体设计，不要太关注细节而让算法太复杂
+ * */
+struct BlockRange
+{
+	BlockRange();
+	BlockRange(int start, int end);
+	int size();
+	int startIndex;
+	int endIndex;
+};
+BlockRange::BlockRange(){};
+BlockRange::BlockRange(int start, int end):startIndex(start), endIndex(end){
+
+};
+int BlockRange::size(){
+	return endIndex - startIndex + 1;
+}
+
+class BuddyMemAlloc
+{
+public:
+	BuddyMemAlloc(int powerNum);
+	//申请@size个block大小的内存，返回分配的block range的 start index作为地址
+	int allocBlock(int size);
+	//释放申请的block的内存
+	void freeBlock(int addr);
+	void printBlockTable();
+private:
+	int partBlockRange(int pos, int partSize);//分离block
+	void backBlockRange(BlockRange block);//归还block
+private:
+	int blockSizePower; //为了简化,假设内存块的最大数为2的blockSizePower次方
+	vector< list<BlockRange>* > freeBlockTable;
+	map<int, BlockRange> allocatedBlockTable;
+	int maxBlockSize;
+	int freeBlockSize;
+};
+
+BuddyMemAlloc::BuddyMemAlloc(int powerNum):blockSizePower(powerNum), freeBlockTable(powerNum + 1),maxBlockSize(pow(2,powerNum)){
+
+	freeBlockSize = maxBlockSize;
+	for(int cc = 0; cc <= blockSizePower; cc++){
+		freeBlockTable[cc] = new list<BlockRange>();
+	}
+	//初始时将整块内存(blockindex从0开始)挂在最后一个表项
+	BlockRange initRange(0, maxBlockSize-1);
+	freeBlockTable[blockSizePower]->push_back(initRange);
+	allocatedBlockTable.clear();
+
+}
+
+void BuddyMemAlloc::printBlockTable()
+{
+	for(int cc = 0; cc <= blockSizePower; cc++){
+		cout << "tableItem " << cc << "{";
+
+		list<BlockRange>* freeList = freeBlockTable[cc];
+		list<BlockRange>::iterator iter = freeList->begin();
+		for( ; iter != freeList->end(); iter++){
+			BlockRange range = *iter;
+			cout <<" " << range.startIndex << "-" << range.endIndex << " ";
+		}
+
+		cout<<"}\n";
+	}
+}
+
+int BuddyMemAlloc::allocBlock(int size)
+{
+	if(size < 1 || size > freeBlockSize)
+		return -1;
+	int tableItem = log2(size);
+	if(tableItem > blockSizePower)
+		return -1;
+
+	int allocatedBlockSize = pow(2, tableItem);
+	freeBlockSize -= allocatedBlockSize;
+
+	//查找是否有大于请求的连续内存块
+	int pos = tableItem;
+	while(pos <= blockSizePower){
+		if(freeBlockTable[pos]->size() > 0)
+			break;
+		pos++;
+	}
+
+
+	if(pos == tableItem){
+		BlockRange range = freeBlockTable[pos]->front();
+		freeBlockTable[pos]->pop_front();
+		allocatedBlockTable[range.startIndex] = range;
+		return range.startIndex;
+	}else{
+		return partBlockRange(pos, allocatedBlockSize);
+	}
+
+}
+
+int BuddyMemAlloc::partBlockRange(int pos, int partSize)
+{
+	BlockRange range = freeBlockTable[pos]->front();
+	freeBlockTable[pos]->pop_front();
+	if(partSize == (range.endIndex - range.startIndex + 1)){
+		int startIndex = range.startIndex;
+		allocatedBlockTable[range.startIndex] = range;
+		return startIndex;
+	}
+
+	//devide into two half
+	BlockRange firstHalf(range.startIndex, (range.startIndex + range.endIndex)/2);
+	BlockRange secondHalf((range.startIndex + range.endIndex)/2 + 1, range.endIndex);
+
+	freeBlockTable[pos-1]->push_front(secondHalf);
+	freeBlockTable[pos-1]->push_front(firstHalf);
+
+	return partBlockRange(pos - 1, partSize);
+}
+
+void BuddyMemAlloc::backBlockRange(BlockRange block)
+{
+	int pos = log2(block.size());
+	list<BlockRange>* freeList = freeBlockTable[pos];
+
+	list<BlockRange>::iterator iter = freeList->begin();
+	list<BlockRange>::iterator prev = iter;
+	for(; iter != freeList->end(); iter++){
+		BlockRange cur = *iter;
+		if(cur.startIndex > block.startIndex){
+		    break;
+		}
+		prev = iter;
+	}
+
+	if(iter == freeList->end()){
+		BlockRange tail = freeList->back();
+		if(block.startIndex == (tail.endIndex + 1)){
+			BlockRange combineBlock(tail.startIndex, block.endIndex);
+			freeList->pop_back();
+			backBlockRange(combineBlock);
+		}else{
+			freeList->push_back(block);
+		}
+	}else if (iter == freeList->begin()){
+		BlockRange front = freeList->front();
+		if(block.endIndex == (front.startIndex - 1)){
+			BlockRange combineBlock(block.startIndex, front.endIndex);
+			freeList->pop_front();
+			backBlockRange(combineBlock);
+		}else{
+			freeList->push_front(block);
+		}
+	}else{
+		BlockRange prevBlock = *prev;
+		BlockRange backBlock = *iter;
+		if(block.startIndex == (prevBlock.endIndex + 1)){
+			BlockRange combineBlock(prevBlock.startIndex, block.endIndex);
+			freeList->erase(prev);
+			backBlockRange(combineBlock);
+		}if(block.endIndex == (backBlock.startIndex - 1)){
+			BlockRange combineBlock(block.startIndex, backBlock.endIndex);
+			freeList->erase(iter);
+			backBlockRange(combineBlock);
+		}else{
+			freeList->insert(iter, block);
+		}
+	}
+
+}
+
+void BuddyMemAlloc::freeBlock(int addr)
+{
+	map<int, BlockRange>::iterator it = allocatedBlockTable.find(addr);
+	if(it != allocatedBlockTable.end()){
+
+		BlockRange block = it->second;
+		backBlockRange(block);
+
+	}
+}
+
+void buddyMemAllocTest()
+{
+	BuddyMemAlloc memPool(8);
+	memPool.printBlockTable();
+
+	int addr = memPool.allocBlock(4);
+	cout << "alloc addr = " << addr << endl;
+	memPool.printBlockTable();
+
+	memPool.freeBlock(addr);
+	memPool.printBlockTable();
+}
+
+/*
+ * <strong>硬件环境</strong>：500MB 内存，CPU为4核
+
+
+<strong>问题</strong>：有两个文件大小为300GB，里面存储的为无序的long型数字，每行一个数字，分隔符为"\n",
+求出两个文件中都相同的数字，按重复个数排序。
+*
+*
+*/
+struct Element
+{
+	long count; //重复出现的次数
+	bool same; //是否两个文件中都相同
+};
+
+void resolve(const string& file1, const string& file2){
+
+
+}
+
+
+
+
+/*
+ * 从offset开始读文件，将数字与其出现的次数写进一张map表中
+ * */
+/*
+void buildMap(int fd, off_t offset, int len)
+{
+	int size = (25*1024*1024)/(2*sizeof(long));
+	map<long, long>* table = new map<long, long>(size);
+
+	int bufSize = 100*1024*1024;
+	char* buffer = new char[bufSize];
+
+	int ret;
+	lseek()
+	while((ret = read(fd, buffer, bufSize) ) > 0){
+
+	}
+}
+*/
+
+
+/*
+ * <strong>特别说明</strong>：
+<ul>
+<li> 语言任选 </li>
+<li> 请尽可能实现最优性能</li>
+</ul>
+
+
+假设一共有H台服务器，每台服务器有Ci个Core、Mi MB内存，Bi MB 带宽，有N个Task，Taskj CPU消耗 Cj，
+内存消耗为Mj，带宽消耗为Bj，运行时长为Tj,求一个调度算法在N个task都运行完成的情况下使H台服务器的资源充分利用。
+ *
+ */
+
+/*
+ * 计算集群资源的totalCore, totalMem
+ * 计算所有task需要的总资源
+ * 计算权重 需要的总资源/集群的总资源
+ * 计算每个任务的权重，排序 优先调度需要资源较少的 权重相同的
+ */
+
+
+/*
+ * 4. Median of Two Sorted Arrays
+ * There are two sorted arrays vec1 and vec2 of size m and n respectively.
+
+Find the median of the two sorted arrays. The overall run time complexity should be O(log (m+n)).
+
+Example 1:
+vec1 = [1, 3]
+vec2 = [2]
+
+The median is 2.0
+Example 2:
+vec1 = [1, 2]
+vec2 = [3, 4]
+
+The median is (2 + 3)/2 = 2.5
+ */
+class FindMedianSortedArraysSolution {
+public:
+	int getkth(int* s, int m, int* l, int n, int k){
+
+	    if(m < n)
+	        return getkth(l, n, s, m, k);
+
+	    if(n == 0)
+	        return s[k-1];
+
+	    if(k == 1)
+	        return (s[0] < l[0])?s[0]:l[0];
+
+	    int cc = k/2;//remove cc of smallest number from src array
+	    int v[2];
+	    if(cc > m)
+	        v[0] = s[m-1];
+	    else
+	        v[0] = s[cc-1];
+
+	    if(cc > n)
+	        v[1] = l[n-1];
+	    else
+	        v[1] = l[cc-1];
+
+	    if(v[0] < v[1]){
+	        if(cc > m){
+	            k = k - m;
+	            m = 0;
+	        }
+	        else{
+	            s += cc;
+	            m -= cc;
+	            k = k - cc;
+	        }
+	    }else{
+	        if(cc > n){
+	            k = k - n;
+	            n = 0;
+	        }
+	        else{
+	            l += cc;
+	            n -= cc;
+	            k = k - cc;
+	        }
+	    }
+	    return getkth(s, m, l, n, k);
+
+	}
+
+	double findMedianSortedArrays(int* nums1, int nums1Size, int* nums2, int nums2Size) {
+	    	int k1 = (nums1Size + nums2Size + 1) >> 1; //devide by 2
+			int k2 = (nums1Size + nums2Size + 2) >> 1;
+			if(k1 == k2)
+				return getkth(nums1, nums1Size, nums2, nums2Size, k1);
+			else{
+				double d1 = getkth(nums1, nums1Size, nums2, nums2Size, k1);
+				double d2 = getkth(nums1, nums1Size, nums2, nums2Size, k2);
+				return (d1+d2)/2;
+			}
+
+	}
+};
+/*
+Merge k sorted linked lists and return it as one sorted list. Analyze and describe its complexity.
+*/
+/**
+ * Definition for singly-linked list.
+ * struct ListNode {
+ *     int val;
+ *     ListNode *next;
+ *     ListNode(int x) : val(x), next(NULL) {}
+ * };
+ */
+/*
+class MergeKListsSolution {
+public:
+    ListNode* mergeKLists(vector<ListNode*>& lists) {
+
+    }
+};*/
+
+/*
+ * 使用堆排序算法对最长1000万个int类型的数据进行排序
+ */
+#include <stdlib.h>
+#include <stdio.h>
+#define MIN_LEN 0
+#define MAX_LEN 10000000
+
+inline int leftChild(int i)
+{
+	//we're sure that this operation cannot cause integer overflow
+	return 2*i + 1;
+}
+inline void swap(int &v1, int &v2)
+{
+	int tmp = v1;
+	v1 = v2;
+	v2 = tmp;
+}
+
+//build the heap from index
+void heapify(int* data, int index, int size)
+{
+	int tmp = data[index];
+	int child;
+	for(; leftChild(index) < size; index = child)
+	{
+		child = leftChild(index);
+		if(child < (size - 1) && data[child] < data[child+1])
+		{
+			child++;
+		}
+		if(tmp < data[child])
+		{
+			data[index] = data[child];
+		}else{
+			break;
+		}
+		index = child;
+	}
+	data[index] = tmp;
+}
+
+int heapSort(int* data, int size)
+{
+	if(data == NULL){
+		printf("invalid data\n");
+		return -1;
+	}
+	if((size < MIN_LEN) && (size > MAX_LEN))
+	{
+		printf("invalid size, the range should be %d~%d\n", MIN_LEN ,MAX_LEN);
+		return -1;
+	}
+
+	//build heap
+	for(int i = (size/2) -1; i >= 0; i--){
+		heapify(data, i, size);
+	}
+
+	//the max data place at the head after heapify
+	for(int j = (size -1); j >= 0; j--){
+		swap(data[0], data[j]);
+		heapify(data, 0, j);
+	}
+	return 0;
+
+}
+
+class BubbleSort
+{
+public:
+	void bubble(int* arr, int size){ //this function should be private
+		if(size <= 0){
+			return ;
+		}
+		for(int loop = 0; loop < (size - 1); loop++){
+			if(arr[loop] < arr[loop + 1]){
+				int tmp = arr[loop + 1];
+				arr[loop + 1] = arr[loop];
+				arr[loop] = tmp;
+			}
+		}
+	}
+	void sort(int* arr, int size){
+		for(int loop = 0; loop < size; loop++){
+			bubble(arr, size - loop);//从子数组(size-loop个数)中找出最小值放到尾部
+		}
+	}
+};
+
+/*选择排序和冒泡排序都是先将最小的数据放到队头或者队尾，不同之处在于选择排序只有确定了最小数后才进行交互，因此交换次数比冒泡要少*/
+class SelectSort
+{
+public:
+	void sort(int *arr, int size){
+		for(int loop = 0; loop < size; loop++){
+			int min = arr[loop];
+			int index = loop;
+			for(int i = loop + 1; i < size; i++){
+				if(arr[i] < min){
+					min = arr[i];
+					index = i;
+				}
+			}
+			int tmp = arr[index];
+			arr[index] = arr[loop];
+			arr[loop] = tmp;
+		}
+	}
+};
+
+class InsertSort
+{
+public:
+	void sort(int *arr, int size){
+		for(int loop = 1; loop < size; loop++){
+			for(int pos = loop; pos > 0; pos--){
+				if(arr[pos] > arr[pos - 1]){
+					int tmp = arr[pos];
+					arr[pos] = arr[pos - 1];
+					arr[pos - 1] = tmp;
+				}
+			}
+		}
+	}
+};
+void swap(int *arr, int i, int j){
+	int tmp = arr[i];
+	arr[i] = arr[j];
+	arr[j] = tmp;
+}
+class QuickSort
+{
+public:
+	void sort(int *arr, int start, int end){
+		if(start >= end){
+			return ;
+		}
+		int key = arr[start]; //优化：从start~end中挑选一个随机index，交换start <-> index
+		int i = start;
+		int j = i + 1;
+
+		while(i <= end){
+			while(j <= end){
+				if(arr[j] <= key){
+					break;
+				}
+				j++;
+			}
+			if(j > end)break;
+			i++;
+			swap(arr, i, j);
+			j++;
+		}
+		swap(arr, start, i);
+		sort(arr, start, i - 1);
+		sort(arr, i + 1, end);
+	}
+
+};
+/*
+ * 设要排序的数组是A[0]……A[N-1]，首先任意选取一个数据（通常选用数组的第一个数）作为关键数据，然后将所有比它小的数都放到它前面，所有比它大的数都放到它后面，这个过程称为一趟快速排序。值得注意的是，快速排序不是一种稳定的排序算法，也就是说，多个相同的值的相对位置也许会在算法结束时产生变动。
+一趟快速排序的算法是：
+1）设置两个变量i、j，排序开始的时候：i=0，j=N-1；
+2）以第一个数组元素作为关键数据，赋值给key，即key=A[0]；
+3）从j开始向前搜索，即由后开始向前搜索(j--)，找到第一个小于key的值A[j]，将A[j]和A[i]互换；
+4）从i开始向后搜索，即由前开始向后搜索(i++)，找到第一个大于key的A[i]，将A[i]和A[j]互换；
+5）重复第3、4步，直到i=j； (3,4步中，没找到符合条件的值，即3中A[j]不小于key,4中A[i]不大于key的时候改变j、i的值，使得j=j-1，i=i+1，直至找到为止。找到符合条件的值，进行交换的时候i， j指针位置不变。另外，i==j这一过程一定正好是i+或j-完成的时候，此时令循环结束）。
+ */
+
+class QuickSort1
+{
+public:
+	void sort(int *arr, int start, int end){
+		if(start >= end){
+			return ;
+		}
+		int key = arr[start]; //优化：从start~end中挑选一个随机index，交换start <-> index
+		int i = start;
+		int j = end;
+
+		while(i < j){
+			while(i < j){
+				if(arr[j] >= key){
+					j--;
+				}else{
+					break;
+				}
+			}
+			if(i == j)break;
+			swap(arr, i, j);
+			while(i < j){
+				if(arr[i] <= key){
+					i++;
+				}else{
+					break;
+				}
+			}
+			swap(arr, i, j);
+		}
+		sort(arr, start, i - 1);
+		sort(arr, i + 1, end);
+	}
+
+};
+
+class HeapSort{
+public:
+
+	void modifyHeap(int* arr, int start, int end){
+		if(start >= end)
+			return ;
+		int top = start;
+		while(top < end){
+			int left = 2*top + 1;
+			int right = 2*top + 2;
+			if(right <= end && arr[right] > arr[left] && arr[right] > arr[top]){
+				swap(arr, right, top);
+				top = right;
+			} else if(left <= end && arr[left] > arr[top]){
+				swap(arr, top, left);
+				top = left;
+			}else{
+				break;
+			}
+		}
+	}
+
+	void buildHeap(int *arr, int size){
+		int n = size - 1;
+		for(int i = (n - 1)/2; i >= 0; i--){
+			modifyHeap(arr, i, n);
+		}
+	}
+
+	void sort(int* arr, int size){
+		buildHeap(arr, size);
+		printf("heap:-------------------------------\n");
+		for(int i = 0; i < size; i++){
+			printf("%d ", arr[i]);
+		}
+		printf("\n");
+		for(int i = 0; i < size; i++){
+			int end = size - i - 1;
+			swap(arr, 0, end);
+			modifyHeap(arr, 0, end -1);
+		}
+	}
+};
