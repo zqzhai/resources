@@ -1,0 +1,85 @@
+/*in.h*/
+#ifndef IN_H
+#define IN_H
+
+#ifdef __cplusplus
+extern "C" { 
+#endif
+
+void func_cplusplus();
+
+void func_c();
+
+#ifdef __cplusplus
+} 
+#endif
+
+#endif
+
+/*in_c.c*/
+#include <stdlib.h>
+#include <stdio.h>
+#include "in.h"
+
+void func_c(){
+	printf("invoke c function\n");
+}
+
+/*in.cpp*/
+#include "in.h"
+
+#include <iostream>
+using namespace std;
+void func_cplusplus(){
+	cout << "invoke c++ function" <<endl; 
+}
+
+/*main.c*/
+#include <stdlib.h>
+#include <stdio.h>
+#include "in.h"
+
+int main(int argc, char* argv)
+{
+	printf("run c program\n");
+	func_c(); 
+	func_cplusplus(); 
+	return 0;
+}
+
+/*main.cpp*/
+#include <iostream>
+#include "in.h"
+
+int main(int argc, char* argv)
+{
+	cout << "run c++ program" <<endl;
+	
+	func_c(); 
+	func_cplusplus(); 
+	
+	return 0;
+}
+
+
+/*build c program*/
+root@ubuntu-zqzhaa:tmp# gcc -c in_c.c
+root@ubuntu-zqzhaa:tmp# g++ -c in.cpp
+root@ubuntu-zqzhaa:tmp# gcc -c main.c
+root@ubuntu-zqzhaa:tmp# cc main.o in.o in_c.o -lstdc++ -o test
+root@ubuntu-zqzhaa:tmp# ./test
+run c program
+invoke c function
+invoke c++ function
+
+/*build c++ program*/
+root@ubuntu-zqzhaa:tmp# rm *.o
+root@ubuntu-zqzhaa:tmp# gcc -c in_c.c
+root@ubuntu-zqzhaa:tmp# g++ -c in.cpp
+root@ubuntu-zqzhaa:tmp# g++ -c main.cpp
+root@ubuntu-zqzhaa:tmp# cc main.o in.o in_c.o -lstdc++ -o test
+root@ubuntu-zqzhaa:tmp# ./test
+run c++ program
+invoke c function
+invoke c++ function
+
